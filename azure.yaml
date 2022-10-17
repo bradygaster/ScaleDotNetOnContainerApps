@@ -1,0 +1,13 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Azure/azure-dev/main/schemas/v1.0/azure.yaml.json
+
+name: BlazorServerApp
+services:
+  blazorserverapp:
+    project: src/BlazorServerApp
+    dist: build
+    language: csharp
+    host: containerapp
+    module: blazorserverapp
+    docker:
+      path: ./Dockerfile
+      context: ../
