@@ -1,115 +1,90 @@
-param location string
-param resourceToken string
-param tags object
-var abbrs = loadJsonContent('abbreviations.json')
+param environmentName string
+param location string = resourceGroup().location
+param principalId string = ''
 
-resource acr 'Microsoft.ContainerRegistry/registries@2022-02-01-preview' = {
-  name: '${abbrs.containerRegistryRegistries}${resourceToken}'
-  tags: tags
-  location: location
-  sku: {
-    name: 'Basic'
-  }
-  properties: {
-    adminUserEnabled: true
+// Container apps host (including container registry)
+module containerApps './core/host/container-apps.bicep' = {
+  name: 'container-apps'
+  params: {
+    environmentName: environmentName
+    location: location
+    logAnalyticsWorkspaceName: monitoring.outputs.logAnalyticsWorkspaceName
+    containerRegistrySku: { name: 'Basic' }
   }
 }
 
-resource storage 'Microsoft.Storage/storageAccounts@2021-09-01' = {
-  name: '${abbrs.storageStorageAccounts}${resourceToken}'
-  location: location
-  tags: tags
-  kind: 'StorageV2'
-  sku: {
-    name: 'Standard_LRS'
-  }
-  identity: {
-    type: 'SystemAssigned'
-  }
-  properties: {
-    minimumTlsVersion: 'TLS1_2'
+// Backing storage for Azure functions backend API
+module storage './core/storage/storage-account.bicep' = {
+  name: 'storage'
+  params: {
+    environmentName: environmentName
+    location: location
     allowBlobPublicAccess: true
-    networkAcls: {
-      bypass: 'AzureServices'
-      defaultAction: 'Allow'
-    }
+    managedIdentity: false
   }
 }
 
-resource imagesContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2022-05-01' = {
-  name: '${storage.name}/default/keys'
-  properties: {
-    publicAccess: 'Blob'
+module storageContainer './core/storage/storage-container.bicep' = {
+  name: 'storagecontainer'
+  params: {
+    environmentName: environmentName
+    location: location
+    storageName: storage.outputs.name
+    blobServicesName: 'default'
+    containerName: 'keys'
   }
 }
 
-resource logs 'Microsoft.OperationalInsights/workspaces@2021-12-01-preview' = {
-  name: '${abbrs.operationalInsightsWorkspaces}${resourceToken}'
-  location: location
-  tags: tags
-  properties: any({
-    retentionInDays: 30
-    features: {
-      searchVersion: 1
-    }
-    sku: {
-      name: 'PerGB2018'
-    }
-  })
-}
-
-resource ai 'Microsoft.Insights/components@2020-02-02' = {
-  name: '${abbrs.insightsComponents}${resourceToken}'
-  location: location
-  tags: tags
-  kind: 'web'
-  properties: {
-    Application_Type: 'web'
-    WorkspaceResourceId: logs.id
+// Backing storage for Azure functions backend API
+module signalR './core/messaging/signalr.bicep' = {
+  name: 'signalr'
+  params: {
+    environmentName: environmentName
+    location: location
   }
 }
 
-resource env 'Microsoft.App/managedEnvironments@2022-03-01' = {
-  name: '${abbrs.appManagedEnvironments}${resourceToken}'
-  location: location
-  tags: tags
-  properties: {
-    appLogsConfiguration: {
-      destination: 'log-analytics'
-      logAnalyticsConfiguration: {
-        customerId: logs.properties.customerId
-        sharedKey: logs.listKeys().primarySharedKey
-      }
-    }
-  }
-}
-
-resource signalr 'Microsoft.SignalRService/signalR@2022-02-01' = {
-  name: '${abbrs.signalRServiceSignalR}${resourceToken}'
-  location: location
-  tags: tags
-  sku: {
-    name: 'Premium_P1'
-    tier: 'Premium'
-    capacity: 2
-  }
-  properties: {
-    features: [
-      {
-        flag: 'ServiceMode'
-        value: 'Default'
-      }
-      {
-        flag: 'EnableConnectivityLogs'
-        value: 'True'
-      }
-    ]
-    cors: {
-      allowedOrigins: [
-        '*'
+// Store secrets in a keyvault
+module keyVault './core/security/keyvault.bicep' = {
+  name: 'keyvault'
+  params: {
+    environmentName: environmentName
+    location: location
+    principalId: principalId
+    permissions: {
+      keys: [
+        'all'
+      ]
+      secrets: [
+        'all'
+      ]
+      certificates: [
+        'all'
       ]
     }
   }
 }
 
-output AZURE_CONTAINER_REGISTRY_ENDPOINT string = acr.properties.loginServer
+module keyVaultKey './core/security/keyvault-key.bicep' = {
+  name: 'keyvaultkey'
+  params: {
+    environmentName: environmentName
+    location: location
+    keyVaultName: keyVault.outputs.keyVaultName
+    keyName: 'key1'
+  }
+}
+
+// Monitor application with Azure Monitor
+module monitoring './core/monitor/monitoring.bicep' = {
+  name: 'monitoring'
+  params: {
+    environmentName: environmentName
+    location: location
+  }
+}
+
+output APPLICATIONINSIGHTS_CONNECTION_STRING string = monitoring.outputs.applicationInsightsConnectionString
+output AZURE_CONTAINER_REGISTRY_ENDPOINT string = containerApps.outputs.containerRegistryEndpoint
+output AZURE_CONTAINER_REGISTRY_NAME string = containerApps.outputs.containerRegistryName
+output AZURE_KEY_VAULT_ENDPOINT string = keyVault.outputs.keyVaultEndpoint

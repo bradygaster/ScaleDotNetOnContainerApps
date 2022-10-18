@@ -2,17 +2,14 @@
     "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
     "contentVersion": "1.0.0.0",
     "parameters": {
-        "environment": {
+        "environmentName": {
             "value": "${AZURE_ENV_NAME}"
         },
         "location": {
             "value": "${AZURE_LOCATION}"
         },
-        "image": {
+        "imageName": {
             "value": "${SERVICE_BLAZORSERVERAPP_IMAGE_NAME}"
-        },
-        "principal": {
-            "value": "${AZURE_PRINCIPAL_ID}"
         }
     }
 }

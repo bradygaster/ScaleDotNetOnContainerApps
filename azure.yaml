@@ -7,7 +7,7 @@ services:
     dist: build
     language: csharp
     host: containerapp
-    module: blazorserverapp
+    module: app/blazorserverapp
     docker:
       path: ./Dockerfile
       context: ../
