@@ -13,12 +13,12 @@ builder.Services.AddSignalR().AddAzureSignalR(options =>
 var BlobStorageUri = builder.Configuration.GetValue<string>("BlobStorageUri");
 var KeyVaultURI = builder.Configuration.GetValue<string>("KeyVaultURI");
 builder.Services.AddAzureClientsCore();
+
+var cred = new DefaultAzureCredential();
+
 builder.Services.AddDataProtection()
-                .PersistKeysToAzureBlobStorage(new Uri(BlobStorageUri),
-                                                new DefaultAzureCredential())
-                // .ProtectKeysWithAzureKeyVault(new Uri(KeyVaultURI),
-                //                                 new DefaultAzureCredential())
-                                                ;
+    .PersistKeysToAzureBlobStorage(new Uri(BlobStorageUri), cred)
+    .ProtectKeysWithAzureKeyVault(new Uri(KeyVaultURI), cred);
 
 var app = builder.Build();
 
