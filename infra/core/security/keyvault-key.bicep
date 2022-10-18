@@ -11,9 +11,8 @@ resource key 'Microsoft.KeyVault/vaults/keys@2022-07-01' = {
   name: keyName
   parent: keyVault
   properties: {
-    kty: 'EC'
+    kty: 'RSA'
     keySize: 2048
-    curveName: 'P-256'  
   }
 }
 

@@ -71,7 +71,7 @@ module keyVaultKey './core/security/keyvault-key.bicep' = {
     environmentName: environmentName
     location: location
     keyVaultName: keyVault.outputs.keyVaultName
-    keyName: 'key1'
+    keyName: 'razorkey'
   }
 }
 
@@ -81,6 +81,15 @@ module monitoring './core/monitor/monitoring.bicep' = {
   params: {
     environmentName: environmentName
     location: location
+  }
+}
+
+// Assign appropriate roles to the local user
+module roleAssignments './app/roles.bicep' = {
+  name: 'role-assignments'
+  params: {
+    principalId: principalId
+    principalType: 'User'
   }
 }
 

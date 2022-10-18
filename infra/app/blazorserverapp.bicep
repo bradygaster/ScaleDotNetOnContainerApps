@@ -42,7 +42,7 @@ module blazorserverapp '../core/host/container-app.bicep' = {
       }
       {
         name: 'KeyVaultURI'
-        value: 'https://${abbrs.keyVaultVaults}${resourceToken}${environment().suffixes.keyvaultDns}/keys/key1/'
+        value: 'https://${abbrs.keyVaultVaults}${resourceToken}${environment().suffixes.keyvaultDns}/keys/razorkey/'
       }
       {
         name: 'AZURE_KEY_VAULT_ENDPOINT'
@@ -79,6 +79,15 @@ module keyVaultAccess '../core/security/keyvault-access.bicep' = {
         'all'
       ]
     }
+  }
+}
+
+
+// Assign appropriate roles to the local user
+module roleAssignments '../app/roles.bicep' = {
+  name: 'role-assignments'
+  params: {
+    principalId: blazorserverapp.outputs.identityPrincipalId
   }
 }
 
