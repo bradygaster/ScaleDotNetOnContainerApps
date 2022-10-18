@@ -2,6 +2,7 @@ param principalId string
 param principalType string = 'ServicePrincipal'
 param resourceGroupName string = resourceGroup().name
 
+// Role GUIDs are defined by Azure.  You can find them all here: https://learn.microsoft.com/en-us/azure/role-based-access-control/built-in-roles
 var roles = [
   {
     name: 'blob_contrib-${principalId}'
