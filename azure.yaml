@@ -8,6 +8,3 @@ services:
     language: csharp
     host: containerapp
     module: app/razorapp
-    docker:
-      path: ./Dockerfile
-      context: ../

@@ -7,10 +7,10 @@ EXPOSE 443
 
 FROM mcr.microsoft.com/dotnet/sdk:6.0 AS build
 WORKDIR /src
-COPY ["ScalableRazor/ScalableRazor.csproj", "ScalableRazor/"]
-RUN dotnet restore "ScalableRazor/ScalableRazor.csproj"
+COPY ["./ScalableRazor.csproj", "."]
+RUN dotnet restore "./ScalableRazor.csproj"
 COPY . .
-WORKDIR "/src/ScalableRazor"
+WORKDIR "/src"
 RUN dotnet build "ScalableRazor.csproj" -c Release -o /app/build
 
 FROM build AS publish
