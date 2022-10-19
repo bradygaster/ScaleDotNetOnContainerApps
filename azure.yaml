@@ -1,0 +1,13 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Azure/azure-dev/main/schemas/v1.0/azure.yaml.json
+
+name: ScalableRazor
+services:
+  razorapp:
+    project: src/ScalableRazor
+    dist: build
+    language: csharp
+    host: containerapp
+    module: app/razorapp
+    docker:
+      path: ./Dockerfile
+      context: ../
