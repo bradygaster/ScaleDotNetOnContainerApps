@@ -7,7 +7,6 @@ param containerRegistryName string = ''
 param imageName string = ''
 param keyVaultName string = ''
 param serviceName string = 'razorapp'
-param signlaRName string = ''
 
 var abbrs = loadJsonContent('../abbreviations.json')
 var resourceToken = toLower(uniqueString(subscription().id, environmentName, location))
@@ -30,10 +29,6 @@ module razorapp '../core/host/container-app.bicep' = {
       {
         name: 'ASPNETCORE_LOGGING__CONSOLE__DISABLECOLORS'
         value: 'true'
-      }
-      {
-        name: 'AzureSignalRConnectionString'
-        value: signalR.listKeys().primaryConnectionString
       }
       {
         name: 'AZURE_KEY_VAULT_ENDPOINT'
@@ -88,10 +83,6 @@ resource applicationInsights 'Microsoft.Insights/components@2020-02-02' existing
 
 resource keyVault 'Microsoft.KeyVault/vaults@2022-07-01' existing = {
   name: !empty(keyVaultName) ? keyVaultName : '${abbrs.keyVaultVaults}${resourceToken}'
-}
-
-resource signalR 'Microsoft.SignalRService/signalR@2022-02-01' existing = {
-  name: !empty(signlaRName) ? signlaRName : '${abbrs.signalRServiceSignalR}${resourceToken}'
 }
 
 output RAZORAPP_IDENTITY_PRINCIPAL_ID string = razorapp.outputs.identityPrincipalId

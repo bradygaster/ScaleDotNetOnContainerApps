@@ -35,15 +35,6 @@ module storageContainer './core/storage/storage-container.bicep' = {
   }
 }
 
-// Backing storage for Azure functions backend API
-module signalR './core/messaging/signalr.bicep' = {
-  name: 'signalr'
-  params: {
-    environmentName: environmentName
-    location: location
-  }
-}
-
 // Store secrets in a keyvault
 module keyVault './core/security/keyvault.bicep' = {
   name: 'keyvault'
