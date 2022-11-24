@@ -11,6 +11,8 @@ param keyVaultName string = ''
 param managedIdentity bool = !(empty(keyVaultName))
 param targetPort int = 80
 param serviceName string
+param minReplicas int = 1
+param maxReplicas int = 1
 
 @description('CPU cores allocated to a single container instance, e.g. 0.5')
 param containerCpuCoreCount string = '0.5'
@@ -62,6 +64,10 @@ resource app 'Microsoft.App/containerApps@2022-03-01' = {
           }
         }
       ]
+      scale: {
+        minReplicas: minReplicas
+        maxReplicas: maxReplicas
+      }
     }
   }
 }

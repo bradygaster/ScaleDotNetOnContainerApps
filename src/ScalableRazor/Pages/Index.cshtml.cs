@@ -8,6 +8,8 @@ namespace ScalableRazor.Pages
 {
     public class IndexModel : PageModel
     {
+        private const string SESSION_KEY_FOR_REPOS = "Repos";
+        private const string SESSION_KEY_FOR_LASTSEARCH = "LastSearch";
         private readonly IConfiguration _env;
         private readonly IHttpClientFactory _httpFactory;
 
@@ -18,16 +20,48 @@ namespace ScalableRazor.Pages
         }
 
         [BindProperty]
-        public string SearchTerm { get; set; }
+        public string? SearchTerm { get; set; }
 
-        public IEnumerable<GitHubRepo> Repos { get; set; } = new List<GitHubRepo>();
+        [BindProperty]
+        public string FavoriteUrl { get; set; }
+
+        public IEnumerable<GitHubRepo>? Repos { get; set; } = new List<GitHubRepo>();
 
         public IActionResult OnGet()
         {
+            RefreshUIFromSession();
+
             return Page();
         }
 
-        public async Task<IActionResult> OnPost()
+        private void RefreshUIFromSession()
+        {
+            if (HttpContext.Session.Keys.Contains(SESSION_KEY_FOR_REPOS))
+            {
+                Repos = JsonSerializer.Deserialize<IEnumerable<GitHubRepo>>(HttpContext.Session.GetString(SESSION_KEY_FOR_REPOS));
+            }
+            if (HttpContext.Session.Keys.Contains(SESSION_KEY_FOR_LASTSEARCH))
+            {
+                SearchTerm = HttpContext.Session.GetString(SESSION_KEY_FOR_LASTSEARCH);
+            }
+        }
+
+        public async Task<IActionResult> OnPost(string Command)
+        {
+            if(Command == "Search")
+            {
+                await Search();
+            }
+            
+            if(Command == "Favorite")
+            {
+                await AddToFavorites(FavoriteUrl);
+            }
+
+            return Page();
+        }
+
+        private async Task Search()
         {
             var client = _httpFactory.CreateClient();
 
@@ -49,10 +83,23 @@ namespace ScalableRazor.Pages
                 using var contentStream =
                     await httpResponseMessage.Content.ReadAsStreamAsync();
 
-                Repos = await JsonSerializer.DeserializeAsync<IEnumerable<GitHubRepo>>(contentStream);
-            }
+                if(contentStream != null)
+                {
+                    Repos = await JsonSerializer.DeserializeAsync<IEnumerable<GitHubRepo>>(contentStream);
 
-            return Page();
+                    // stash the results into session so they can be remembered as the user favorites things
+                    var json = JsonSerializer.Serialize(Repos);
+                    HttpContext.Session.SetString(SESSION_KEY_FOR_REPOS, json);
+                    HttpContext.Session.SetString(SESSION_KEY_FOR_LASTSEARCH, SearchTerm);
+                }
+            }
+        }
+
+        public Task AddToFavorites(string url)
+        {
+            var listOfFavorites = new List<string>();
+            RefreshUIFromSession();
+            return Task.CompletedTask;
         }
     }
 }

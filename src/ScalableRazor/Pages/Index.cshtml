@@ -11,7 +11,7 @@
     <div class="form-group mb-3">
         <input type="text" class="form-control" asp-for="@Model.SearchTerm" />
     </div>
-    <input class="btn btn-success" type="submit" value="Search" />
+    <input class="btn btn-success" type="submit" name="Command" value="Search" />
 </form>
 
 <table class="table table-striped table-bordered">
@@ -27,7 +27,15 @@
         <tr>
             <td>@item.Name</td>
             <td>@Html.Raw(item.Description)</td>
-            <td><a class="btn btn-secondary" href="@item.HtmlUrl">Browse</a></td>
+            <td>
+                <form method="post" class="form mb-5">
+                    <input type="hidden" value="@item.HtmlUrl" asp-for="@Model.FavoriteUrl" />
+                    <input class="btn btn-primary" type="submit" name="Command" value="Favorite" />
+                </form>
+            </td>
+            <td>
+                <a class="btn btn-secondary" target="_blank" href="@item.HtmlUrl">Browse</a>
+            </td>
         </tr>
     }
 </table>
