@@ -10,6 +10,7 @@ namespace ScalableRazor.Pages
     {
         private const string SESSION_KEY_FOR_REPOS = "Repos";
         private const string SESSION_KEY_FOR_LASTSEARCH = "LastSearch";
+        private const string SESSION_KEY_FOR_RECENTSEARCHES = "RecentSearches";
         private readonly IConfiguration _env;
         private readonly IHttpClientFactory _httpFactory;
 
@@ -26,6 +27,7 @@ namespace ScalableRazor.Pages
         public string FavoriteUrl { get; set; }
 
         public IEnumerable<GitHubRepo>? Repos { get; set; } = new List<GitHubRepo>();
+        public List<string>? RecentSearches { get; set; } = new List<string>();
 
         public IActionResult OnGet()
         {
@@ -44,6 +46,10 @@ namespace ScalableRazor.Pages
             {
                 SearchTerm = HttpContext.Session.GetString(SESSION_KEY_FOR_LASTSEARCH);
             }
+            if (HttpContext.Session.Keys.Contains(SESSION_KEY_FOR_RECENTSEARCHES))
+            {
+                RecentSearches = JsonSerializer.Deserialize<List<string>>(HttpContext.Session.GetString(SESSION_KEY_FOR_RECENTSEARCHES));
+            }
         }
 
         public async Task<IActionResult> OnPost(string Command)
@@ -52,10 +58,14 @@ namespace ScalableRazor.Pages
             {
                 await Search();
             }
-            
-            if(Command == "Favorite")
+            else if(Command == "Favorite")
             {
                 await AddToFavorites(FavoriteUrl);
+            }
+            else
+            {
+                SearchTerm = Command;
+                await Search();
             }
 
             return Page();
@@ -91,6 +101,15 @@ namespace ScalableRazor.Pages
                     var json = JsonSerializer.Serialize(Repos);
                     HttpContext.Session.SetString(SESSION_KEY_FOR_REPOS, json);
                     HttpContext.Session.SetString(SESSION_KEY_FOR_LASTSEARCH, SearchTerm);
+
+                    if(HttpContext.Session.Keys.Contains(SESSION_KEY_FOR_RECENTSEARCHES))
+                        RecentSearches = JsonSerializer.Deserialize<List<string>>(HttpContext.Session.GetString(SESSION_KEY_FOR_RECENTSEARCHES));
+
+                    if(!RecentSearches.Contains(SearchTerm))
+                    {
+                        RecentSearches.Add(SearchTerm);
+                        HttpContext.Session.SetString(SESSION_KEY_FOR_RECENTSEARCHES, JsonSerializer.Serialize(RecentSearches));
+                    }
                 }
             }
         }

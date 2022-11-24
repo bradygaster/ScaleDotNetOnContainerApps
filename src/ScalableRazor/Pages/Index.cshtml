@@ -14,6 +14,13 @@
     <input class="btn btn-success" type="submit" name="Command" value="Search" />
 </form>
 
+<form method="post" class="form mb-5">
+    @foreach (var searchTerm in Model.RecentSearches)
+    {
+        <input class="btn btn-success" type="submit" name="Command" value="@searchTerm" />
+    }
+</form>
+
 <table class="table table-striped table-bordered">
     <thead>
         <tr>
