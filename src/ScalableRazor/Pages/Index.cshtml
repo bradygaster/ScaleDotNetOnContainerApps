@@ -14,6 +14,7 @@
     <input class="btn btn-success" type="submit" name="Command" value="Search" />
 </form>
 
+<h1 class="display-6">Recent Searches</h1>
 <form method="post" class="form mb-5">
     @foreach (var searchTerm in Model.RecentSearches)
     {
@@ -36,8 +37,16 @@
             <td>@Html.Raw(item.Description)</td>
             <td>
                 <form method="post" class="form mb-5">
-                    <input type="hidden" value="@item.HtmlUrl" asp-for="@Model.FavoriteUrl" />
-                    <input class="btn btn-primary" type="submit" name="Command" value="Favorite" />
+                    @if (Model.Favorites.Any(x => x.HtmlUrl == item.HtmlUrl))
+                    {
+                        <input type="hidden" value="@item.HtmlUrl" asp-for="@Model.FavoriteUrl" />
+                        <input class="btn btn-danger" type="submit" name="Command" value="Unfavorite" />
+                    }
+                    else
+                    {
+                        <input type="hidden" value="@item.HtmlUrl" asp-for="@Model.FavoriteUrl" />
+                        <input class="btn btn-success" type="submit" name="Command" value="Favorite" />
+                    }
                 </form>
             </td>
             <td>
