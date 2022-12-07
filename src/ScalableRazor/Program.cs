@@ -24,6 +24,7 @@ builder.Services.AddOrleans(siloBuilder =>
             azureBlobGrainStorageOptions.ConfigureTableServiceClient(storageConnectionString);
         });
 });
+builder.AddDataProtectionUsingBlobsAndKeyVault();
 
 var app = builder.Build();
 

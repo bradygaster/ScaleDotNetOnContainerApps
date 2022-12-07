@@ -60,7 +60,14 @@ namespace ScalableRazor.Pages
                 RecentSearches = JsonSerializer.Deserialize<List<string>>(HttpContext.Session.GetString(SESSION_KEY_FOR_RECENTSEARCHES));
             }
 
-            Favorites = await _favoritesService.GetFavorites();
+            try
+            {
+                Favorites = await _favoritesService.GetFavorites();
+            }
+            catch(ArgumentNullException)
+            {
+                Favorites = new List<GitHubRepo>();
+            }
         }
 
         public async Task<IActionResult> OnPost(string Command)
