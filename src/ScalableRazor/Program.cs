@@ -25,6 +25,11 @@ builder.Services.AddOrleans(siloBuilder =>
         });
 });
 builder.AddDataProtectionUsingBlobsAndKeyVault();
+builder.Services.AddOrleansDistributedCache(options =>
+{
+    options.PersistWhenSet = true;
+    options.DefaultDelayDeactivation = TimeSpan.FromMinutes(5);
+});
 
 var app = builder.Build();
 
