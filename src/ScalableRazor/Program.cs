@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Azure;
 using ScalableRazor;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -12,6 +13,7 @@ builder.Services.AddServerSideBlazor();
 builder.Services.AddSession();
 builder.Services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();
 builder.Services.AddSingleton<FavoritesService>();
+
 builder.Services.AddOrleans(siloBuilder =>
 {
     siloBuilder
@@ -22,9 +24,21 @@ builder.Services.AddOrleans(siloBuilder =>
         .AddAzureTableGrainStorageAsDefault(azureBlobGrainStorageOptions =>
         {
             azureBlobGrainStorageOptions.ConfigureTableServiceClient(storageConnectionString);
+        })
+        .ConfigureServices(services =>
+        {
+            //var BlobStorageUri = builder.Configuration["AzureURIs:BlobStorage"];
+            //var KeyVaultURI = builder.Configuration["AzureURIs:KeyVault"];
+            //var azureCredential = new DefaultAzureCredential();
+            builder.Services.AddAzureClientsCore();
+            builder.Services.AddDataProtection()
+                            .PersistKeysToOrleans()
+                            //.PersistKeysToAzureBlobStorage(new Uri(BlobStorageUri), azureCredential)
+                            //.ProtectKeysWithAzureKeyVault(new Uri(KeyVaultURI), azureCredential)
+                            ;
         });
 });
-builder.AddDataProtectionUsingBlobsAndKeyVault();
+
 builder.Services.AddOrleansDistributedCache(options =>
 {
     options.PersistWhenSet = true;
