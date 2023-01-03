@@ -11,10 +11,10 @@ namespace ScalableRazor
     {
         public static IDataProtectionBuilder PersistKeysToOrleans(this IDataProtectionBuilder builder)
         {
-            builder.Services.Configure<KeyManagementOptions>(options =>
+            builder.Services.AddSingleton<OrleansXmlRepository>();
+            builder.Services.AddOptions<KeyManagementOptions>().Configure<OrleansXmlRepository>((options, repository) =>
             {
-                var serviceProvider = builder.Services.BuildServiceProvider();
-                options.XmlRepository = new OrleansXmlRepository(serviceProvider.GetRequiredService<IGrainFactory>(), serviceProvider.GetRequiredService<ILogger<OrleansXmlRepository>>());
+                options.XmlRepository = repository;
             });
 
             return builder;
