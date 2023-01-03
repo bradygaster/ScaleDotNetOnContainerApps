@@ -96,12 +96,12 @@ namespace ScalableRazor
 
     public class OrleansXmlRepositoryGrain : Grain, IOrleansXmlRepositoryGrain
     {
-        private readonly IPersistentState<string> _state;
+        private readonly IPersistentState<XmlRepositoryItem> _state;
         private readonly ILogger<OrleansXmlRepositoryGrain> _logger;
 
         public OrleansXmlRepositoryGrain(
             [PersistentState("Keys")]
-            IPersistentState<string> state, ILogger<OrleansXmlRepositoryGrain> logger)
+            IPersistentState<XmlRepositoryItem> state, ILogger<OrleansXmlRepositoryGrain> logger)
         {
             _state = state;
             _logger = logger;
@@ -110,13 +110,22 @@ namespace ScalableRazor
         public async Task<string> GetKey()
         {
             await _state.ReadStateAsync();
-            return _state.State;
+            return _state.State.Value;
         }
 
         public async Task StoreKey(string xml)
         {
             _logger.LogInformation(xml);
+            
+            _state.State.Value = xml;
             await _state.WriteStateAsync();
         }
+    }
+
+    [GenerateSerializer]
+    public class XmlRepositoryItem
+    {
+        [Id(0)]
+        public string Value { get; set; }
     }
 }
