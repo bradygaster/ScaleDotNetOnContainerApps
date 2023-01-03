@@ -25,18 +25,22 @@ builder.Services.AddOrleans(siloBuilder =>
         {
             azureBlobGrainStorageOptions.ConfigureTableServiceClient(storageConnectionString);
         })
+        /*
         .ConfigureServices(services =>
         {
-            //var BlobStorageUri = builder.Configuration["AzureURIs:BlobStorage"];
-            //var KeyVaultURI = builder.Configuration["AzureURIs:KeyVault"];
-            //var azureCredential = new DefaultAzureCredential();
+            
+            var BlobStorageUri = builder.Configuration["AzureURIs:BlobStorage"];
+            var KeyVaultURI = builder.Configuration["AzureURIs:KeyVault"];
+            var azureCredential = new DefaultAzureCredential();
             builder.Services.AddAzureClientsCore();
             builder.Services.AddDataProtection()
-                            .PersistKeysToOrleans()
-                            //.PersistKeysToAzureBlobStorage(new Uri(BlobStorageUri), azureCredential)
-                            //.ProtectKeysWithAzureKeyVault(new Uri(KeyVaultURI), azureCredential)
+                            .PersistKeysToAzureBlobStorage(new Uri(BlobStorageUri), azureCredential)
+                            .ProtectKeysWithAzureKeyVault(new Uri(KeyVaultURI), azureCredential)
                             ;
-        });
+            
+        })
+        */
+        ;
 });
 
 builder.Services.AddOrleansDistributedCache(options =>
@@ -44,6 +48,8 @@ builder.Services.AddOrleansDistributedCache(options =>
     options.PersistWhenSet = true;
     options.DefaultDelayDeactivation = TimeSpan.FromMinutes(5);
 });
+
+builder.Services.AddDataProtection().PersistKeysToOrleans();
 
 var app = builder.Build();
 

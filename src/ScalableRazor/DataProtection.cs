@@ -76,10 +76,9 @@ namespace ScalableRazor
             rdr.MoveToContent();
             var xml = rdr.ReadOuterXml();
 
-            var grain = _grainFactory.GetGrain<IOrleansXmlRepositoryGrain>(Guid.Empty);
-
             try
             {
+                var grain = _grainFactory.GetGrain<IOrleansXmlRepositoryGrain>(Guid.Empty);
                 await grain.StoreKey(xml);
             }
             catch (NullReferenceException)
