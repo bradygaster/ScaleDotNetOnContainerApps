@@ -29,5 +29,4 @@ app.UseStaticFiles();
 app.UseRouting();
 app.UseAuthorization();
 app.MapRazorPages(); 
-app.MapGet("http400", () => Results.StatusCode(400));
 app.Run();
