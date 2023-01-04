@@ -44,6 +44,8 @@ module razorapp '../core/host/container-app.bicep' = {
       }
     ]
     imageName: !empty(imageName) ? imageName : 'nginx:latest'
+    minReplicas: 3
+    maxReplicas: 3
     keyVaultName: keyVault.name
     serviceName: serviceName
     external: true

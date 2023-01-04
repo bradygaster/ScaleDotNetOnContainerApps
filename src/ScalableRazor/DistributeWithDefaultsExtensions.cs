@@ -15,9 +15,10 @@
                     {
                         azureStorageConfigurationOptions.ConfigureTableServiceClient(storageConnectionString);
                     })
-                    .AddAzureTableGrainStorageAsDefault(azureBlobGrainStorageOptions =>
+                    .AddAzureBlobGrainStorageAsDefault(azureBlobGrainStorageOptions =>
                     {
-                        azureBlobGrainStorageOptions.ConfigureTableServiceClient(storageConnectionString);
+                        azureBlobGrainStorageOptions.ContainerName = "grainstorage";
+                        azureBlobGrainStorageOptions.ConfigureBlobServiceClient(storageConnectionString);
                     });
             });
 

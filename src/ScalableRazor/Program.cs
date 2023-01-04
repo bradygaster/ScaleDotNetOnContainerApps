@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.DataProtection;
 using ScalableRazor;
 
 var builder = WebApplication.CreateBuilder(args);

@@ -3,12 +3,16 @@ using Microsoft.AspNetCore.DataProtection.KeyManagement;
 using Microsoft.AspNetCore.DataProtection.Repositories;
 using Orleans.Runtime;
 using System.Collections.ObjectModel;
+using System.Text;
+using System.Xml;
 using System.Xml.Linq;
 
 namespace ScalableRazor
 {
     public static class DataProtection
     {
+        internal const string DataProtectionLogPrefix = "[ODPP]: ";
+        
         public static IDataProtectionBuilder PersistKeysToOrleans(this IDataProtectionBuilder builder)
         {
             builder.Services.AddSingleton<OrleansXmlRepository>();
@@ -23,9 +27,9 @@ namespace ScalableRazor
 
     public class OrleansXmlRepository : IXmlRepository
     {
-        private static readonly XName RepositoryElementName = "repository";
         private IGrainFactory _grainFactory;
         private readonly ILogger<OrleansXmlRepository> _logger;
+        private static readonly XName RepositoryElementName = "repository";
 
         public OrleansXmlRepository(IGrainFactory grainFactory, ILogger<OrleansXmlRepository> logger)
         {
@@ -43,82 +47,136 @@ namespace ScalableRazor
 
         private async Task<IList<XElement>> GetAllElementsAsync()
         {
-            var grain = _grainFactory.GetGrain<IOrleansXmlRepositoryGrain>(Guid.Empty);
-
-            try
-            {
-                var xml = await grain.GetKey();
-
-                if (xml == null)
-                {
-                    return new List<XElement>();
-                }
-                else
-                {
-                    var result = new List<XElement> { XElement.Parse(xml) };
-                    return result;
-                }
-            }
-            catch
-            {
-                return new List<XElement>();
-            }
+            var doc = await CreateKeyListFromOrleans();
+            _logger.LogInformation($"{DataProtection.DataProtectionLogPrefix}There are currently {doc.Root.Elements().Count()} keys in the ring.");
+            return doc.Root.Elements().ToList();
         }
 
         private async Task StoreElementAsync(XElement element)
         {
-            if (element == null)
-            {
-                throw new ArgumentNullException(nameof(element));
-            }
-            
-            var rdr = element.CreateReader();
-            rdr.MoveToContent();
-            var xml = rdr.ReadOuterXml();
+            var xml = string.Empty;
+            var keyId = Guid.Parse(element.Attribute("id").Value);
+
+            var grain = _grainFactory.GetGrain<IOrleansXmlRepositoryGrain>(Guid.Empty);
 
             try
             {
-                var grain = _grainFactory.GetGrain<IOrleansXmlRepositoryGrain>(Guid.Empty);
-                await grain.StoreKey(xml);
+                _logger.LogInformation($"{DataProtection.DataProtectionLogPrefix}Storing key {keyId} in Orleans.");
+                await grain.StoreKey(keyId, element.ToString());
             }
-            catch (NullReferenceException)
+            catch (Exception ex)
             {
-                _logger.LogCritical("Orleans isn't up yet.");
+                _logger.LogError(ex, $"{DataProtection.DataProtectionLogPrefix}Error storing key {keyId} in Orleans: {ex.StackTrace}.");
+                throw ex;
+            }
+        }
+
+        private async Task<XDocument> CreateKeyListFromOrleans()
+        {
+            var xml = string.Empty;
+            var grain = _grainFactory.GetGrain<IOrleansXmlRepositoryGrain>(Guid.Empty);
+
+            try
+            {
+                xml = await grain.GetKeys();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"{DataProtection.DataProtectionLogPrefix}Unable to retrieve keys from Orleans: {ex.StackTrace}");
+                throw ex;
+            }
+
+            if (string.IsNullOrEmpty(xml))
+            {
+                return new XDocument(new XElement(RepositoryElementName));
+            }
+
+            using var memoryStream = new MemoryStream(Encoding.UTF8.GetBytes(xml));
+
+            var xmlReaderSettings = new XmlReaderSettings()
+            {
+                DtdProcessing = DtdProcessing.Prohibit,
+                IgnoreProcessingInstructions = true,
+            };
+
+            using (var xmlReader = XmlReader.Create(memoryStream, xmlReaderSettings))
+            {
+                return XDocument.Load(xmlReader);
             }
         }
     }
 
     public interface IOrleansXmlRepositoryGrain : IGrainWithGuidKey
     {
-        Task StoreKey(string xml);
-        Task<string> GetKey();
+        Task StoreKey(Guid keyId, string xml);
+        Task<string> GetKeys();
     }
 
     public class OrleansXmlRepositoryGrain : Grain, IOrleansXmlRepositoryGrain
     {
-        private readonly IPersistentState<XmlRepositoryItem> _state;
+        private readonly IPersistentState<List<XmlRepositoryItem>> _state;
         private readonly ILogger<OrleansXmlRepositoryGrain> _logger;
+        private static readonly XName RepositoryElementName = "repository";
 
         public OrleansXmlRepositoryGrain(
             [PersistentState("Keys")]
-            IPersistentState<XmlRepositoryItem> state, ILogger<OrleansXmlRepositoryGrain> logger)
+            IPersistentState<List<XmlRepositoryItem>> state, ILogger<OrleansXmlRepositoryGrain> logger)
         {
             _state = state;
             _logger = logger;
         }
 
-        public async Task<string> GetKey()
+        public async Task<string> GetKeys()
         {
             await _state.ReadStateAsync();
-            return _state.State.Value;
+            var doc = new XDocument(new XElement(RepositoryElementName));
+            
+            if (!_state.State.Any())
+            {
+                return doc.ToString();
+            }
+            else
+            {
+                foreach (var item in _state.State)
+                {
+                    doc.Root.Add(XElement.Parse(item.Xml));
+                }
+            }
+
+            var result = doc.ToString();
+            return result;
         }
 
-        public async Task StoreKey(string xml)
+        public async Task StoreKey(Guid keyId, string xml)
         {
-            _logger.LogInformation(xml);
-            
-            _state.State.Value = xml;
-            await _state.WriteStateAsync();
+            try
+            {
+                _logger.LogInformation($"{DataProtection.DataProtectionLogPrefix}Checking for existing key {keyId}.");
+
+                if (_state.State.Any(x => x.Id == keyId))
+                {
+                    _logger.LogInformation($"{DataProtection.DataProtectionLogPrefix}Key {keyId} already exists.");
+                }
+                else
+                {
+                    _logger.LogInformation($"{DataProtection.DataProtectionLogPrefix}Storing key {keyId}.");
+
+                    _state.State.Add(new XmlRepositoryItem
+                    {
+                        Id = keyId,
+                        Xml = xml
+                    });
+
+                    await _state.WriteStateAsync();
+
+                    _logger.LogInformation($"{DataProtection.DataProtectionLogPrefix}Stored key {keyId}.");
+                }
+            }
+            catch(Exception ex)
+            {
+                _logger.LogError(ex, $"{DataProtection.DataProtectionLogPrefix}Error storing key {keyId}: {ex.StackTrace}");
+                throw ex;
+            }
         }
     }
 
@@ -126,6 +184,9 @@ namespace ScalableRazor
     public class XmlRepositoryItem
     {
         [Id(0)]
-        public string Value { get; set; }
+        public Guid Id { get; set; }
+
+        [Id(1)]
+        public string Xml { get; set; }
     }
 }
