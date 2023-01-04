@@ -35,9 +35,9 @@ namespace ScalableRazor.Pages
 
         public async Task<IActionResult> OnGet()
         {
-            if (!_favoritesService.HasCookie())
+            if (!_favoritesService.HasCookie(HttpContext))
             {
-                _favoritesService.SetCookie();
+                _favoritesService.SetCookie(HttpContext);
             }
 
             await RefreshUIFromSession();
@@ -62,7 +62,7 @@ namespace ScalableRazor.Pages
 
             try
             {
-                Favorites = await _favoritesService.GetFavorites();
+                Favorites = await _favoritesService.GetFavorites(HttpContext);
             }
             catch(ArgumentNullException)
             {
@@ -143,13 +143,13 @@ namespace ScalableRazor.Pages
             await RefreshUIFromSession();
 
             var repo = Repos.FirstOrDefault(r => r.HtmlUrl == url);
-            if (await _favoritesService.IsFavorite(repo))
+            if (await _favoritesService.IsFavorite(repo, HttpContext))
             {
-                await _favoritesService.Unfavorite(repo);
+                await _favoritesService.Unfavorite(repo, HttpContext);
             }
             else
             {
-                await _favoritesService.Favorite(repo);
+                await _favoritesService.Favorite(repo, HttpContext);
             }
         }
 
@@ -158,7 +158,7 @@ namespace ScalableRazor.Pages
             await RefreshUIFromSession();
             
             var repo = Repos.FirstOrDefault(r => r.HtmlUrl == url);
-            await _favoritesService.Unfavorite(repo);
+            await _favoritesService.Unfavorite(repo, HttpContext);
         }
     }
 }

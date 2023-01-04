@@ -18,21 +18,21 @@ namespace ScalableRazor.Pages
 
         public async Task OnGetAsync()
         {
-            Repos = await _favoritesService.GetFavorites();
+            Repos = await _favoritesService.GetFavorites(HttpContext);
         }
 
         public async Task<IActionResult> OnPostAsync(string Command)
         {
             if (Command == "Unfavorite")
             {
-                var favorite = (await _favoritesService.GetFavorites()).FirstOrDefault(f => f.HtmlUrl == UrlToUnfavorite);
+                var favorite = (await _favoritesService.GetFavorites(HttpContext)).FirstOrDefault(f => f.HtmlUrl == UrlToUnfavorite);
                 if(favorite != null)
                 {
-                    await _favoritesService.Unfavorite(favorite);
+                    await _favoritesService.Unfavorite(favorite, HttpContext);
                 }
             }
 
-            Repos = await _favoritesService.GetFavorites();
+            Repos = await _favoritesService.GetFavorites(HttpContext);
             return Page();
         }
     }

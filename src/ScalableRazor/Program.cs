@@ -9,7 +9,6 @@ builder.Services.AddServerSideBlazor();
 builder.Services.AddSession();
 
 // application services
-builder.Services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();
 builder.Services.AddScoped<FavoritesService>();
 
 // enable distributed processing and scale-out
