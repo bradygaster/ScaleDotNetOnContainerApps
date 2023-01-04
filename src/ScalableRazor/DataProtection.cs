@@ -11,8 +11,6 @@ namespace ScalableRazor
 {
     public static class DataProtection
     {
-        internal const string DataProtectionLogPrefix = "[ODPP]: ";
-        
         public static IDataProtectionBuilder PersistKeysToOrleans(this IDataProtectionBuilder builder)
         {
             builder.Services.AddSingleton<OrleansXmlRepository>();
@@ -48,41 +46,24 @@ namespace ScalableRazor
         private async Task<IList<XElement>> GetAllElementsAsync()
         {
             var doc = await CreateKeyListFromOrleans();
-            _logger.LogInformation($"{DataProtection.DataProtectionLogPrefix}There are currently {doc.Root.Elements().Count()} keys in the ring.");
             return doc.Root.Elements().ToList();
         }
 
         private async Task StoreElementAsync(XElement element)
-        {
-            var xml = string.Empty;
-            var keyId = Guid.Parse(element.Attribute("id").Value);
-
-            var grain = _grainFactory.GetGrain<IOrleansXmlRepositoryGrain>(Guid.Empty);
-
-            try
-            {
-                _logger.LogInformation($"{DataProtection.DataProtectionLogPrefix}Storing key {keyId} in Orleans.");
-                await grain.StoreKey(keyId, element.ToString());
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"{DataProtection.DataProtectionLogPrefix}Error storing key {keyId} in Orleans: {ex.StackTrace}.");
-                throw ex;
-            }
-        }
+            => await _grainFactory
+                        .GetGrain<IOrleansXmlRepositoryGrain>(Guid.Empty)
+                        .StoreKey(Guid.Parse(element.Attribute("id").Value), element.ToString());
 
         private async Task<XDocument> CreateKeyListFromOrleans()
         {
             var xml = string.Empty;
-            var grain = _grainFactory.GetGrain<IOrleansXmlRepositoryGrain>(Guid.Empty);
 
             try
             {
-                xml = await grain.GetKeys();
+                xml = await _grainFactory.GetGrain<IOrleansXmlRepositoryGrain>(Guid.Empty).GetKeys();
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"{DataProtection.DataProtectionLogPrefix}Unable to retrieve keys from Orleans: {ex.StackTrace}");
                 throw ex;
             }
 
@@ -131,11 +112,7 @@ namespace ScalableRazor
             await _state.ReadStateAsync();
             var doc = new XDocument(new XElement(RepositoryElementName));
             
-            if (!_state.State.Any())
-            {
-                return doc.ToString();
-            }
-            else
+            if (_state.State.Any())
             {
                 foreach (var item in _state.State)
                 {
@@ -149,33 +126,15 @@ namespace ScalableRazor
 
         public async Task StoreKey(Guid keyId, string xml)
         {
-            try
+            if (!_state.State.Any(x => x.Id == keyId))
             {
-                _logger.LogInformation($"{DataProtection.DataProtectionLogPrefix}Checking for existing key {keyId}.");
-
-                if (_state.State.Any(x => x.Id == keyId))
+                _state.State.Add(new XmlRepositoryItem
                 {
-                    _logger.LogInformation($"{DataProtection.DataProtectionLogPrefix}Key {keyId} already exists.");
-                }
-                else
-                {
-                    _logger.LogInformation($"{DataProtection.DataProtectionLogPrefix}Storing key {keyId}.");
+                    Id = keyId,
+                    Xml = xml
+                });
 
-                    _state.State.Add(new XmlRepositoryItem
-                    {
-                        Id = keyId,
-                        Xml = xml
-                    });
-
-                    await _state.WriteStateAsync();
-
-                    _logger.LogInformation($"{DataProtection.DataProtectionLogPrefix}Stored key {keyId}.");
-                }
-            }
-            catch(Exception ex)
-            {
-                _logger.LogError(ex, $"{DataProtection.DataProtectionLogPrefix}Error storing key {keyId}: {ex.StackTrace}");
-                throw ex;
+                await _state.WriteStateAsync();
             }
         }
     }
