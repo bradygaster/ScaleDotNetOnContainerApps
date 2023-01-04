@@ -2,6 +2,10 @@
 Most of the code in this file and these implementations is lifted from https://github.com/MV10/OrleansDistributedCache,
 then upgraded to Orleans 7.0, with some modifications along the way. 
 
+Appreciation to the author for the original implementation and excellent blog post
+summarizing how to use the implementation. 
+https://mcguirev10.com/2019/09/18/distributed-caching-with-microsoft-orleans.html
+
 The original code is licensed under the Apache license.
 */
 
