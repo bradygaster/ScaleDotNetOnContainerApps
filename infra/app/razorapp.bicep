@@ -7,7 +7,6 @@ param containerRegistryName string = ''
 param imageName string = ''
 param keyVaultName string = ''
 param serviceName string = 'razorapp'
-param signlaRName string = ''
 
 var abbrs = loadJsonContent('../abbreviations.json')
 var resourceToken = toLower(uniqueString(subscription().id, environmentName, location))
@@ -32,10 +31,6 @@ module razorapp '../core/host/container-app.bicep' = {
         value: 'true'
       }
       {
-        name: 'AzureSignalRConnectionString'
-        value: signalR.listKeys().primaryConnectionString
-      }
-      {
         name: 'AZURE_KEY_VAULT_ENDPOINT'
         value: keyVault.properties.vaultUri
       }
@@ -43,8 +38,14 @@ module razorapp '../core/host/container-app.bicep' = {
         name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
         value: applicationInsights.properties.ConnectionString
       }
+      {
+        name: 'AZURE_STORAGE_CONNECTION_STRING'
+        value: 'DefaultEndpointsProtocol=https;AccountName=${storage.name};AccountKey=${storage.listKeys().keys[0].value};EndpointSuffix=${environment().suffixes.storage}'
+      }
     ]
     imageName: !empty(imageName) ? imageName : 'nginx:latest'
+    minReplicas: 3
+    maxReplicas: 3
     keyVaultName: keyVault.name
     serviceName: serviceName
     external: true
@@ -90,8 +91,8 @@ resource keyVault 'Microsoft.KeyVault/vaults@2022-07-01' existing = {
   name: !empty(keyVaultName) ? keyVaultName : '${abbrs.keyVaultVaults}${resourceToken}'
 }
 
-resource signalR 'Microsoft.SignalRService/signalR@2022-02-01' existing = {
-  name: !empty(signlaRName) ? signlaRName : '${abbrs.signalRServiceSignalR}${resourceToken}'
+resource storage 'Microsoft.Storage/storageAccounts@2022-05-01' existing = {
+  name: '${abbrs.storageStorageAccounts}${resourceToken}'
 }
 
 output RAZORAPP_IDENTITY_PRINCIPAL_ID string = razorapp.outputs.identityPrincipalId

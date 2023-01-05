@@ -1,0 +1,32 @@
+﻿@page
+@model ScalableRazor.Pages.FavoritesModel
+
+<h1 class="display-6">Favorites</h1>
+<p class="mb-3">These are the repos you've favorited.</p>
+
+
+<table class="table table-striped table-bordered">
+    <thead>
+        <tr>
+            <td>Name</td>
+            <td>Description</td>
+            <td>Link</td>
+        </tr>
+    </thead>
+    @foreach (var item in Model.Repos)
+    {
+        <tr>
+            <td>@item.Name</td>
+            <td>@Html.Raw(item.Description)</td>
+            <td>
+                <form method="post" class="form mb-5">
+                    <input type="hidden" value="@item.HtmlUrl" asp-for="@Model.UrlToUnfavorite" />
+                    <input class="btn btn-danger" type="submit" name="Command" value="Unfavorite" />
+                </form>
+            </td>
+            <td>
+                <a class="btn btn-secondary" target="_blank" href="@item.HtmlUrl">Browse</a>
+            </td>
+        </tr>
+    }
+</table>

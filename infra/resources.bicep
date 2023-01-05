@@ -24,8 +24,8 @@ module storage './core/storage/storage-account.bicep' = {
   }
 }
 
-module storageContainer './core/storage/storage-container.bicep' = {
-  name: 'storagecontainer'
+module keysContainer './core/storage/storage-container.bicep' = {
+  name: 'keysContainer'
   params: {
     environmentName: environmentName
     location: location
@@ -35,12 +35,14 @@ module storageContainer './core/storage/storage-container.bicep' = {
   }
 }
 
-// Backing storage for Azure functions backend API
-module signalR './core/messaging/signalr.bicep' = {
-  name: 'signalr'
+module grainStorageContainer './core/storage/storage-container.bicep' = {
+  name: 'grainStorageContainer'
   params: {
     environmentName: environmentName
     location: location
+    storageName: storage.outputs.name
+    blobServicesName: 'default'
+    containerName: 'grainstorage'
   }
 }
 

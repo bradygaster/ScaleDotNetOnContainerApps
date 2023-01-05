@@ -1,6 +1,5 @@
-using Azure.Identity;
 using Microsoft.AspNetCore.DataProtection;
-using Microsoft.Extensions.Azure;
+using ScalableRazor;
 
 var builder = WebApplication.CreateBuilder(args);
 var BlobStorageUri = builder.Configuration["AzureURIs:BlobStorage"];
@@ -10,26 +9,27 @@ var cred = new DefaultAzureCredential();
 builder.Services.AddRazorPages();
 builder.Services.AddHttpClient();
 builder.Services.AddServerSideBlazor();
-builder.Services.AddAzureClientsCore();
-builder.Services.AddDataProtection()
-                .PersistKeysToAzureBlobStorage(new Uri(BlobStorageUri), cred)
-                .ProtectKeysWithAzureKeyVault(new Uri(KeyVaultURI), cred);
+builder.Services.AddSession();
+
+// application services
+builder.Services.AddScoped<FavoritesService>();
+
+// enable distributed processing and scale-out
+builder.AddDistributedDefaults();
 
 var app = builder.Build();
 
 if (!app.Environment.IsDevelopment())
 {
+    app.UseDeveloperExceptionPage();
     app.UseExceptionHandler("/Error");
     app.UseHsts();
 }
 
+app.UseSession();
 app.UseHttpsRedirection();
 app.UseStaticFiles();
-
 app.UseRouting();
-
 app.UseAuthorization();
-
-app.MapRazorPages();
-
+app.MapRazorPages(); 
 app.Run();
