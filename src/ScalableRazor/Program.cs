@@ -2,6 +2,9 @@ using Microsoft.AspNetCore.DataProtection;
 using ScalableRazor;
 
 var builder = WebApplication.CreateBuilder(args);
+var BlobStorageUri = builder.Configuration["AzureURIs:BlobStorage"];
+var KeyVaultURI = builder.Configuration["AzureURIs:KeyVault"];
+var cred = new DefaultAzureCredential();
 
 builder.Services.AddRazorPages();
 builder.Services.AddHttpClient();
