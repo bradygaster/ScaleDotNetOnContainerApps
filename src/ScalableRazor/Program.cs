@@ -7,7 +7,7 @@ builder.Services.AddServerSideBlazor();
 builder.Services.AddSession();
 
 // application services
-builder.Services.AddScoped<FavoritesService>();
+builder.AddFavoritesService();
 
 // enable distributed processing and scale-out
 builder.AddDistributedDefaults();
@@ -26,5 +26,5 @@ app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseRouting();
 app.UseAuthorization();
-app.MapRazorPages(); 
+app.MapRazorPages();
 app.Run();

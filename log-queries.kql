@@ -1,0 +1,20 @@
+// snapshot of the container logs
+ContainerAppConsoleLogs_CL 
+| project TimeGenerated, RevisionName_s, ContainerGroupName_s, Log_s
+| order by TimeGenerated
+
+// the list of revisions
+ContainerAppConsoleLogs_CL 
+| project TimeGenerated, RevisionName_s
+| summarize CameOnline = min(TimeGenerated) by RevisionName_s
+| order by CameOnline desc
+
+// the current revision
+let currentRevision = ContainerAppConsoleLogs_CL 
+| project TimeGenerated, CurrentRevision = RevisionName_s
+| summarize CameOnline = min(TimeGenerated) by CurrentRevision
+| order by CameOnline desc
+| limit 1
+| project-away CameOnline
+;
+currentRevision

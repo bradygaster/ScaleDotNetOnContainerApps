@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 // Change this to be the URL of your scaled-out app. 
-let siteUrl = 'https://localhost:5001';
+let siteUrl = 'https://githubbrowserrazorapp.redsand-dec7a119.eastus.azurecontainerapps.io/';
 
 // A list of organizations to search for
 let organizations: string[] = ['microsoft', 'azure', 'github', 'netflix', 'twitter', 'facepunch', 'dotnet', 'apache', 'ibm', 'openapi', 'facebook'];
