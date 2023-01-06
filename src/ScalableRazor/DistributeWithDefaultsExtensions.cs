@@ -1,4 +1,6 @@
-﻿namespace ScalableRazor
+﻿using Microsoft.AspNetCore.DataProtection;
+
+namespace ScalableRazor
 {
     public static class DistributeWithDefaultsExtensions
     {
@@ -8,6 +10,7 @@
                                         ? "UseDevelopmentStorage=true"
                                         : builder.Configuration.GetValue<string>("AZURE_STORAGE_CONNECTION_STRING");
 
+            // wire up the orleans silo
             builder.Services.AddOrleans(siloBuilder =>
             {
                 siloBuilder
@@ -22,12 +25,14 @@
                     });
             });
 
+            // add distributed caching
             builder.Services.AddOrleansDistributedCache(options =>
             {
                 options.PersistWhenSet = true;
                 options.DefaultDelayDeactivation = TimeSpan.FromMinutes(5);
             });
 
+            // add data protection
             builder.Services.AddDataProtection()
                             .PersistKeysToOrleans();
 

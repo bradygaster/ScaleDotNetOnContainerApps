@@ -9,13 +9,28 @@ https://mcguirev10.com/2019/09/18/distributed-caching-with-microsoft-orleans.htm
 The original code is licensed under the Apache license.
 */
 
-using Microsoft.Extensions.Caching.Distributed;
-using Microsoft.Extensions.Options;
-using Orleans;
-using Orleans.Concurrency;
-
-namespace ScalableRazor
+namespace Microsoft.Extensions.DependencyInjection
 {
+    using Microsoft.Extensions.Caching.Distributed;
+    using Microsoft.Extensions.Distributed;
+    
+    public static class OrleansDistributedCacheExtensions
+    {
+        public static IServiceCollection AddOrleansDistributedCache(this IServiceCollection services, Action<OrleansDistributedCacheOptions> options = null)
+        {
+            services.AddOptions().Configure(options ?? new Action<OrleansDistributedCacheOptions>(defaultOptions => { }));
+            services.AddSingleton<IDistributedCache, OrleansDistributedCache>();
+            return services;
+        }
+    }
+}
+
+namespace Microsoft.Extensions.Distributed
+{
+    using Microsoft.Extensions.Caching.Distributed;
+    using Microsoft.Extensions.Options;
+    using Orleans.Concurrency;
+
     public interface IOrleansDistributedCacheGrain<T> : IGrainWithStringKey
     {
         Task Set(Immutable<T> value, TimeSpan delayDeactivation);
@@ -150,16 +165,6 @@ namespace ScalableRazor
 
             public static TResult Run<TResult>(Func<Task<TResult>> task)
                 => factory.StartNew(task).Unwrap().GetAwaiter().GetResult();
-        }
-    }
-    public static class OrleansDistributedCacheExtensions
-    {
-        public static IServiceCollection AddOrleansDistributedCache(this IServiceCollection services, Action<OrleansDistributedCacheOptions> options = null)
-        {
-            services.AddOptions();
-            services.Configure(options ?? new Action<OrleansDistributedCacheOptions>(defaultOptions => { }));
-            services.AddSingleton<IDistributedCache, OrleansDistributedCache>();
-            return services;
         }
     }
 }

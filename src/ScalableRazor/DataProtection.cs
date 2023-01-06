@@ -1,14 +1,9 @@
-﻿using Microsoft.AspNetCore.DataProtection;
-using Microsoft.AspNetCore.DataProtection.KeyManagement;
-using Microsoft.AspNetCore.DataProtection.Repositories;
-using Orleans.Runtime;
-using System.Collections.ObjectModel;
-using System.Text;
-using System.Xml;
-using System.Xml.Linq;
-
-namespace ScalableRazor
+﻿
+namespace Microsoft.AspNetCore.DataProtection
 {
+    using Microsoft.AspNetCore.DataProtection.KeyManagement;
+    using Microsoft.Extensions.Distributed;
+    
     public static class DataProtection
     {
         public static IDataProtectionBuilder PersistKeysToOrleans(this IDataProtectionBuilder builder)
@@ -22,6 +17,16 @@ namespace ScalableRazor
             return builder;
         }
     }
+}
+
+namespace Microsoft.Extensions.Distributed
+{
+    using Microsoft.AspNetCore.DataProtection.Repositories;
+    using Orleans.Runtime;
+    using System.Collections.ObjectModel;
+    using System.Text;
+    using System.Xml;
+    using System.Xml.Linq;
 
     public class OrleansXmlRepository : IXmlRepository
     {
@@ -74,13 +79,12 @@ namespace ScalableRazor
 
             using var memoryStream = new MemoryStream(Encoding.UTF8.GetBytes(xml));
 
-            var xmlReaderSettings = new XmlReaderSettings()
+
+            using (var xmlReader = XmlReader.Create(memoryStream, new XmlReaderSettings()
             {
                 DtdProcessing = DtdProcessing.Prohibit,
                 IgnoreProcessingInstructions = true,
-            };
-
-            using (var xmlReader = XmlReader.Create(memoryStream, xmlReaderSettings))
+            }))
             {
                 return XDocument.Load(xmlReader);
             }
