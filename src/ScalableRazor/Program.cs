@@ -1,9 +1,6 @@
 using ScalableRazor;
 
 var builder = WebApplication.CreateBuilder(args);
-var BlobStorageUri = builder.Configuration["AzureURIs:BlobStorage"];
-var KeyVaultURI = builder.Configuration["AzureURIs:KeyVault"];
-
 builder.Services.AddRazorPages();
 builder.Services.AddHttpClient();
 builder.Services.AddServerSideBlazor();
