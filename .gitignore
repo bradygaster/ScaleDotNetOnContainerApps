@@ -478,3 +478,6 @@ $RECYCLE.BIN/
 *.lnk
 
 .azure
+/test-results/
+/playwright-report/
+/playwright/.cache/

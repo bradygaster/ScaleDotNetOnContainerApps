@@ -9,16 +9,16 @@
 
 <form method="post" class="form mb-5">
     <div class="form-group mb-3">
-        <input type="text" class="form-control" asp-for="@Model.SearchTerm" />
+        <input type="text" id="searchTerm" class="form-control" asp-for="@Model.SearchTerm" />
     </div>
-    <input class="btn btn-success" type="submit" name="Command" value="Search" />
+    <input class="btn btn-success" id="searchButton" type="submit" name="Command" value="Search" />
 </form>
 
 <h1 class="display-6">Recent Searches</h1>
 <form method="post" class="form mb-5">
     @foreach (var searchTerm in Model.RecentSearches)
     {
-        <input class="btn btn-success" type="submit" name="Command" value="@searchTerm" />
+        <input class="btn btn-success recentSearchTerm" type="submit" name="Command" value="@searchTerm" />
     }
 </form>
 
@@ -40,12 +40,12 @@
                     @if (Model.Favorites.Any(x => x.HtmlUrl == item.HtmlUrl))
                     {
                         <input type="hidden" value="@item.HtmlUrl" asp-for="@Model.FavoriteUrl" />
-                        <input class="btn btn-danger" type="submit" name="Command" value="Unfavorite" />
+                        <input class="btn btn-danger unFavoriteButton" type="submit" name="Command" value="Unfavorite" />
                     }
                     else
                     {
                         <input type="hidden" value="@item.HtmlUrl" asp-for="@Model.FavoriteUrl" />
-                        <input class="btn btn-success" type="submit" name="Command" value="Favorite" />
+                        <input class="btn btn-success favoriteButton" type="submit" name="Command" value="Favorite" />
                     }
                 </form>
             </td>
