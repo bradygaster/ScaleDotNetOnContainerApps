@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Net.Http.Headers;
-using System;
 using System.Text.Json;
 
 
@@ -14,13 +14,21 @@ namespace ScalableRazor.Pages
         private const string SESSION_KEY_FOR_RECENTSEARCHES = "RecentSearches";
         private readonly IConfiguration _env;
         private readonly IHttpClientFactory _httpFactory;
+        private readonly IMemoryCache _memoryCache;
         private readonly FavoritesService _favoritesService;
+        private readonly ILogger<IndexModel> _logger;
 
-        public IndexModel(IConfiguration env, IHttpClientFactory httpFactory, FavoritesService favoritesService)
+        public IndexModel(IConfiguration env,
+            IHttpClientFactory httpFactory,
+            IMemoryCache memoryCache,
+            FavoritesService favoritesService,
+            ILogger<IndexModel> logger)
         {
             _env = env;
             _httpFactory = httpFactory;
+            _memoryCache = memoryCache;
             _favoritesService = favoritesService;
+            _logger = logger;
         }
 
         [BindProperty]
@@ -97,44 +105,58 @@ namespace ScalableRazor.Pages
 
         private async Task Search()
         {
-            var client = _httpFactory.CreateClient();
-
-            var gitHubUrl = $"{_env["GitHubUrl"]}/orgs/{SearchTerm}/repos";
-
-            // GitHub API wants a UserAgent specified
-            var httpRequestMessage = new HttpRequestMessage(HttpMethod.Get, gitHubUrl)
+            IEnumerable<GitHubRepo> tmpRepos = null;
+            
+            if (_memoryCache.TryGetValue<IEnumerable<GitHubRepo>>(SearchTerm, out tmpRepos))
             {
-                Headers =
-                {
-                    { HeaderNames.UserAgent, "dotnet" }
-                }
-            };
-
-            var httpResponseMessage = await client.SendAsync(httpRequestMessage);
-
-            if (httpResponseMessage.IsSuccessStatusCode)
+                _logger.LogInformation($"Cache hit for {SearchTerm}");
+                Repos = tmpRepos;
+                
+            }
+            else
             {
-                using var contentStream =
-                    await httpResponseMessage.Content.ReadAsStreamAsync();
+                _logger.LogInformation($"Cache miss for {SearchTerm}");
 
-                if (contentStream != null)
+                var client = _httpFactory.CreateClient();
+
+                var gitHubUrl = $"{_env["GitHubUrl"]}/orgs/{SearchTerm}/repos";
+
+                // GitHub API wants a UserAgent specified
+                var httpRequestMessage = new HttpRequestMessage(HttpMethod.Get, gitHubUrl)
                 {
-                    Repos = await JsonSerializer.DeserializeAsync<IEnumerable<GitHubRepo>>(contentStream);
-
-                    // stash the results into session so they can be remembered as the user favorites things
-                    var json = JsonSerializer.Serialize(Repos);
-                    HttpContext.Session.SetString(SESSION_KEY_FOR_REPOS, json);
-                    HttpContext.Session.SetString(SESSION_KEY_FOR_LASTSEARCH, SearchTerm);
-
-                    if (HttpContext.Session.Keys.Contains(SESSION_KEY_FOR_RECENTSEARCHES))
-                        RecentSearches = JsonSerializer.Deserialize<List<string>>(HttpContext.Session.GetString(SESSION_KEY_FOR_RECENTSEARCHES));
-
-                    if (!RecentSearches.Contains(SearchTerm))
+                    Headers =
                     {
-                        RecentSearches.Add(SearchTerm);
-                        HttpContext.Session.SetString(SESSION_KEY_FOR_RECENTSEARCHES, JsonSerializer.Serialize(RecentSearches));
+                        { HeaderNames.UserAgent, "dotnet" }
+                    }
+                };
+
+                var httpResponseMessage = await client.SendAsync(httpRequestMessage);
+
+                if (httpResponseMessage.IsSuccessStatusCode)
+                {
+                    using var contentStream =
+                        await httpResponseMessage.Content.ReadAsStreamAsync();
+
+                    if (contentStream != null)
+                    {
+                        Repos = await JsonSerializer.DeserializeAsync<IEnumerable<GitHubRepo>>(contentStream);
+
+                        // stash the results into session so they can be remembered as the user favorites things
+                        var json = JsonSerializer.Serialize(Repos);
+                        HttpContext.Session.SetString(SESSION_KEY_FOR_REPOS, json);
+                        HttpContext.Session.SetString(SESSION_KEY_FOR_LASTSEARCH, SearchTerm);
+                        _memoryCache.Set(SearchTerm, Repos);
                     }
                 }
+            }
+            
+            if (HttpContext.Session.Keys.Contains(SESSION_KEY_FOR_RECENTSEARCHES))
+                RecentSearches = JsonSerializer.Deserialize<List<string>>(HttpContext.Session.GetString(SESSION_KEY_FOR_RECENTSEARCHES));
+
+            if (!RecentSearches.Contains(SearchTerm))
+            {
+                RecentSearches.Add(SearchTerm);
+                HttpContext.Session.SetString(SESSION_KEY_FOR_RECENTSEARCHES, JsonSerializer.Serialize(RecentSearches));
             }
         }
 
