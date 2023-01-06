@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 // Change this to be the URL of your scaled-out app. 
-let siteUrl = 'https://githubsearchrazorapp.greendune-def3b6f9.eastus.azurecontainerapps.io';
+let siteUrl = 'http://localhost:5001';
 
 // A list of organizations to search for
 let organizations: string[] = ['microsoft', 'azure', 'github', 'netflix', 'twitter', 'facepunch', 'dotnet', 'apache', 'ibm', 'openapi', 'facebook'];
