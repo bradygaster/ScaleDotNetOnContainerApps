@@ -15,8 +15,8 @@ namespace ScalableRazor.Pages
         private readonly IConfiguration _env;
         private readonly IHttpClientFactory _httpFactory;
         private readonly IDistributedCache _distributedCache;
-        private readonly FavoritesService _favoritesService;
         private readonly ILogger<IndexModel> _logger;
+        private readonly FavoritesService _favoritesService;
 
         public IndexModel(IConfiguration env,
             IHttpClientFactory httpFactory,
@@ -37,8 +37,8 @@ namespace ScalableRazor.Pages
         [BindProperty]
         public string FavoriteUrl { get; set; }
 
-        public IEnumerable<GitHubRepo>? Repos { get; set; } = new List<GitHubRepo>();
-        public IEnumerable<GitHubRepo>? Favorites { get; set; } = new List<GitHubRepo>();
+        public List<GitHubRepo>? Repos { get; set; } = new List<GitHubRepo>();
+        public List<GitHubRepo>? Favorites { get; set; } = new List<GitHubRepo>();
         public List<string>? RecentSearches { get; set; } = new List<string>();
 
         public async Task<IActionResult> OnGet()
@@ -82,7 +82,7 @@ namespace ScalableRazor.Pages
         {
             if (HttpContext.Session.Keys.Contains(SESSION_KEY_FOR_REPOS))
             {
-                Repos = JsonSerializer.Deserialize<IEnumerable<GitHubRepo>>(HttpContext.Session.GetString(SESSION_KEY_FOR_REPOS));
+                Repos = JsonSerializer.Deserialize<List<GitHubRepo>>(HttpContext.Session.GetString(SESSION_KEY_FOR_REPOS));
             }
             if (HttpContext.Session.Keys.Contains(SESSION_KEY_FOR_LASTSEARCH))
             {
@@ -109,7 +109,7 @@ namespace ScalableRazor.Pages
 
             if (!string.IsNullOrEmpty(reposJson))
             {
-                Repos = JsonSerializer.Deserialize<IEnumerable<GitHubRepo>>(reposJson);
+                Repos = JsonSerializer.Deserialize<List<GitHubRepo>>(reposJson);
                 _logger.LogInformation($"Cache hit for {SearchTerm}");
             }
             else
@@ -138,7 +138,7 @@ namespace ScalableRazor.Pages
 
                     if (contentStream != null)
                     {
-                        Repos = await JsonSerializer.DeserializeAsync<IEnumerable<GitHubRepo>>(contentStream);
+                        Repos = await JsonSerializer.DeserializeAsync<List<GitHubRepo>>(contentStream);
 
                         // stash the results into session so they can be remembered as the user favorites things
                         var json = JsonSerializer.Serialize(Repos);
