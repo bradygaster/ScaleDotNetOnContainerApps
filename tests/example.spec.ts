@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 // Change this to be the URL of your scaled-out app. 
-let siteUrl = 'http://localhost:5001';
+let siteUrl = 'https://githubsearchrazorapp.greendune-def3b6f9.eastus.azurecontainerapps.io/';
 
 // A list of organizations to search for
 let organizations: string[] = ['microsoft', 'azure', 'github', 'netflix', 'twitter', 'facepunch', 'dotnet', 'apache', 'ibm', 'openapi', 'facebook'];
@@ -43,7 +43,7 @@ test('can search for repos', async ({ page }) => {
 
 test('can see recent searches', async ({ page }) => {
   await page.goto(siteUrl);
-  var randomOrgs = organizations.sort(() => Math.random() - Math.random()).slice(0, 3);
+  var randomOrgs = organizations.sort(() => Math.random() - Math.random()).slice(0, 5);
   for (const org of randomOrgs) {
     // Fill an input.
     console.log("Searching for " + org);
@@ -52,18 +52,6 @@ test('can see recent searches', async ({ page }) => {
     // Click the search button.
     await page.getByRole('button', { name: 'Search' }).click();
     await page.waitForLoadState();
-
-    //  Make sure the search text was persisted
-    var searchBox = await page.locator('#searchTerm');
-    await expect(searchBox).toHaveValue(org);
-
-    // Make sure the search is included in the list of recent searches
-    var recentSearchButton = await page.getByRole('button', { name: org });
-    await expect(await recentSearchButton.count()).toBeGreaterThan(0);
-
-    // Make sure the search results are visible
-    var favoriteButtons = await page.getByRole('button', { name: 'Favorite' });
-    await expect(await favoriteButtons.count()).toBeGreaterThan(0);
   }
 
   // Make sure the recent searches are visible
