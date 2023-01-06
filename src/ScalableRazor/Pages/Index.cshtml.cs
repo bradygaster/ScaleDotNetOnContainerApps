@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Net.Http.Headers;
 using System.Text.Json;
 
@@ -14,21 +14,21 @@ namespace ScalableRazor.Pages
         private const string SESSION_KEY_FOR_RECENTSEARCHES = "RecentSearches";
         private readonly IConfiguration _env;
         private readonly IHttpClientFactory _httpFactory;
-        private readonly IMemoryCache _memoryCache;
+        private readonly IDistributedCache _distributedCache;
         private readonly FavoritesService _favoritesService;
         private readonly ILogger<IndexModel> _logger;
 
         public IndexModel(IConfiguration env,
             IHttpClientFactory httpFactory,
-            IMemoryCache memoryCache,
-            FavoritesService favoritesService,
-            ILogger<IndexModel> logger)
+            IDistributedCache distributedCache,
+            ILogger<IndexModel> logger,
+            FavoritesService favoritesService)
         {
             _env = env;
             _httpFactory = httpFactory;
-            _memoryCache = memoryCache;
-            _favoritesService = favoritesService;
+            _distributedCache = distributedCache;
             _logger = logger;
+            _favoritesService = favoritesService;
         }
 
         [BindProperty]
@@ -51,31 +51,6 @@ namespace ScalableRazor.Pages
             await RefreshUIFromSession();
 
             return Page();
-        }
-
-        private async Task RefreshUIFromSession()
-        {
-            if (HttpContext.Session.Keys.Contains(SESSION_KEY_FOR_REPOS))
-            {
-                Repos = JsonSerializer.Deserialize<IEnumerable<GitHubRepo>>(HttpContext.Session.GetString(SESSION_KEY_FOR_REPOS));
-            }
-            if (HttpContext.Session.Keys.Contains(SESSION_KEY_FOR_LASTSEARCH))
-            {
-                SearchTerm = HttpContext.Session.GetString(SESSION_KEY_FOR_LASTSEARCH);
-            }
-            if (HttpContext.Session.Keys.Contains(SESSION_KEY_FOR_RECENTSEARCHES))
-            {
-                RecentSearches = JsonSerializer.Deserialize<List<string>>(HttpContext.Session.GetString(SESSION_KEY_FOR_RECENTSEARCHES));
-            }
-
-            try
-            {
-                Favorites = await _favoritesService.GetFavorites(HttpContext);
-            }
-            catch(ArgumentNullException)
-            {
-                Favorites = new List<GitHubRepo>();
-            }
         }
 
         public async Task<IActionResult> OnPost(string Command)
@@ -103,15 +78,39 @@ namespace ScalableRazor.Pages
             return Page();
         }
 
+        private async Task RefreshUIFromSession()
+        {
+            if (HttpContext.Session.Keys.Contains(SESSION_KEY_FOR_REPOS))
+            {
+                Repos = JsonSerializer.Deserialize<IEnumerable<GitHubRepo>>(HttpContext.Session.GetString(SESSION_KEY_FOR_REPOS));
+            }
+            if (HttpContext.Session.Keys.Contains(SESSION_KEY_FOR_LASTSEARCH))
+            {
+                SearchTerm = HttpContext.Session.GetString(SESSION_KEY_FOR_LASTSEARCH);
+            }
+            if (HttpContext.Session.Keys.Contains(SESSION_KEY_FOR_RECENTSEARCHES))
+            {
+                RecentSearches = JsonSerializer.Deserialize<List<string>>(HttpContext.Session.GetString(SESSION_KEY_FOR_RECENTSEARCHES));
+            }
+
+            try
+            {
+                Favorites = await _favoritesService.GetFavorites(HttpContext);
+            }
+            catch (ArgumentNullException)
+            {
+                Favorites = new List<GitHubRepo>();
+            }
+        }
+
         private async Task Search()
         {
-            IEnumerable<GitHubRepo> tmpRepos = null;
-            
-            if (_memoryCache.TryGetValue<IEnumerable<GitHubRepo>>(SearchTerm, out tmpRepos))
+            var reposJson = await _distributedCache.GetStringAsync(SearchTerm);
+
+            if (!string.IsNullOrEmpty(reposJson))
             {
+                Repos = JsonSerializer.Deserialize<IEnumerable<GitHubRepo>>(reposJson);
                 _logger.LogInformation($"Cache hit for {SearchTerm}");
-                Repos = tmpRepos;
-                
             }
             else
             {
@@ -145,7 +144,7 @@ namespace ScalableRazor.Pages
                         var json = JsonSerializer.Serialize(Repos);
                         HttpContext.Session.SetString(SESSION_KEY_FOR_REPOS, json);
                         HttpContext.Session.SetString(SESSION_KEY_FOR_LASTSEARCH, SearchTerm);
-                        _memoryCache.Set(SearchTerm, Repos);
+                        await _distributedCache.SetStringAsync(SearchTerm, json);
                     }
                 }
             }
