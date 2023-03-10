@@ -16,56 +16,55 @@ using Orleans.Concurrency;
 
 namespace ScalableRazor
 {
-    public interface IOrleansDistributedCacheGrain<T> : IGrainWithStringKey
+    public interface IOrleansDistributedCacheGrain : IGrainWithStringKey
     {
-        Task Set(Immutable<T> value, TimeSpan delayDeactivation);
-        Task<Immutable<T>> Get();
-        Task Refresh();
-        Task Clear();
+        ValueTask Set([Immutable] byte[]? value, TimeSpan? delayDeactivation);
+        ValueTask<Immutable<byte[]?>> Get();
+        ValueTask Refresh();
+        ValueTask Clear();
     }
 
     public class OrleansDistributedCacheOptions
     {
-        public bool PersistWhenSet { get; set; } = true;
         public TimeSpan DefaultDelayDeactivation { get; set; } = TimeSpan.FromMinutes(5);
     }
 
-    public class OrleansDistributedCacheGrain<T> : Grain<Immutable<T>>, IOrleansDistributedCacheGrain<T>
+    public class OrleansDistributedCacheGrain : Grain, IOrleansDistributedCacheGrain
     {
-        private TimeSpan delayDeactivation = TimeSpan.Zero;
         private readonly OrleansDistributedCacheOptions _options;
-        private readonly ILogger<OrleansDistributedCacheGrain<T>> _logger;
+        private TimeSpan _delayDeactivation = TimeSpan.Zero;
+        private byte[]? _value;
 
-        public OrleansDistributedCacheGrain(IOptions<OrleansDistributedCacheOptions> options, ILogger<OrleansDistributedCacheGrain<T>> logger)
+        public OrleansDistributedCacheGrain(IOptions<OrleansDistributedCacheOptions> options)
         {
             _options = options.Value;
-            _logger = logger;
+            _delayDeactivation = _options.DefaultDelayDeactivation;
         }
 
-        public async Task Clear()
+        public ValueTask Clear()
         {
-            await base.ClearStateAsync();
+            _value = null;
             DeactivateOnIdle();
+            return default;
         }
 
-        public Task<Immutable<T>> Get()
-            => Task.FromResult(State);
+        public ValueTask<Immutable<byte[]?>> Get() => new(_value.AsImmutable());
 
-        public async Task Refresh()
+        public ValueTask Refresh()
         {
-            await base.ReadStateAsync();
-            DelayDeactivation(delayDeactivation);
+            DelayDeactivation(_delayDeactivation);
+            return default;
         }
 
-        public async Task Set(Immutable<T> value, TimeSpan delayDeactivation)
+        public ValueTask Set([Immutable] byte[]? value, TimeSpan? delayDeactivation)
         {
-            State = value;
-            this.delayDeactivation = (delayDeactivation > TimeSpan.Zero) ? delayDeactivation : _options.DefaultDelayDeactivation;
-
-            if (_options.PersistWhenSet)
-                await base.WriteStateAsync();
+            _value = value;
+            _delayDeactivation = (delayDeactivation is { } delay && delay > TimeSpan.Zero) ? delay : _options.DefaultDelayDeactivation;
+            DelayDeactivation(_delayDeactivation);
+            return default;
         }
     }
+
     public class OrleansDistributedCache : IDistributedCache
     {
         public const string OrleansDistributedCacheStorageProviderName = "OrleansDistributedCacheStorageProvider";
@@ -80,22 +79,22 @@ namespace ScalableRazor
 
         #region Async Methods
 
-        public Task SetAsync(string key, byte[] value, DistributedCacheEntryOptions options, CancellationToken token = default)
+        public async Task SetAsync(string key, byte[] value, DistributedCacheEntryOptions options, CancellationToken token = default)
         {
             var created = DateTimeOffset.UtcNow;
             var expires = AbsoluteExpiration(created, options);
             var seconds = ExpirationSeconds(created, expires, options);
-            return _grainFactory.GetGrain<IOrleansDistributedCacheGrain<byte[]>>(key).Set(new Immutable<byte[]>(value), TimeSpan.FromSeconds(seconds ?? 0));
+            await _grainFactory.GetGrain<IOrleansDistributedCacheGrain>(key).Set(value, TimeSpan.FromSeconds(seconds ?? 0));
         }
 
         public async Task<byte[]?> GetAsync(string key, CancellationToken token = default)
-            => (await _grainFactory.GetGrain<IOrleansDistributedCacheGrain<byte[]>>(key).Get()).Value;
+            => (await _grainFactory.GetGrain<IOrleansDistributedCacheGrain>(key).Get()).Value;
 
         public Task RefreshAsync(string key, CancellationToken token = default)
-            => _grainFactory.GetGrain<IOrleansDistributedCacheGrain<byte[]>>(key).Refresh();
+            => _grainFactory.GetGrain<IOrleansDistributedCacheGrain>(key).Refresh().AsTask();
 
         public Task RemoveAsync(string key, CancellationToken token = default)
-            => _grainFactory.GetGrain<IOrleansDistributedCacheGrain<byte[]>>(key).Clear();
+            => _grainFactory.GetGrain<IOrleansDistributedCacheGrain>(key).Clear().AsTask();
 
         #endregion
 
@@ -103,61 +102,53 @@ namespace ScalableRazor
 
         [Obsolete(Use_Async_Only_Message)]
         public void Set(string key, byte[] value, DistributedCacheEntryOptions options)
-            => SyncOverAsync.Run(() => SetAsync(key, value, options));
+            => Task.Run(() => SetAsync(key, value, options));
 
         [Obsolete(Use_Async_Only_Message)]
         public byte[]? Get(string key)
-            => SyncOverAsync.Run(() => GetAsync(key));
+            => Task.Run(() => GetAsync(key)).Result;
 
         [Obsolete(Use_Async_Only_Message)]
         public void Refresh(string key)
-            => SyncOverAsync.Run(() => RefreshAsync(key));
+            => Task.Run(() => RefreshAsync(key)).Wait();
 
         [Obsolete(Use_Async_Only_Message)]
         public void Remove(string key)
-            => SyncOverAsync.Run(() => RemoveAsync(key));
+            => Task.Run(() => RemoveAsync(key)).Wait();
 
         #endregion
 
         private static DateTimeOffset? AbsoluteExpiration(DateTimeOffset creationTime, DistributedCacheEntryOptions options)
             => options.AbsoluteExpirationRelativeToNow.HasValue ? creationTime + options.AbsoluteExpirationRelativeToNow : options.AbsoluteExpiration;
 
-        private static long? ExpirationSeconds(DateTimeOffset creationTime, DateTimeOffset? absoulteExpiration, DistributedCacheEntryOptions options)
+        private static long? ExpirationSeconds(DateTimeOffset creationTime, DateTimeOffset? absoluteExpiration, DistributedCacheEntryOptions options)
         {
-            if (absoulteExpiration.HasValue && options.SlidingExpiration.HasValue)
+            if (absoluteExpiration.HasValue && options.SlidingExpiration.HasValue)
             {
                 return (long)Math.Min(
-                    (absoulteExpiration.Value - creationTime).TotalSeconds,
+                    (absoluteExpiration.Value - creationTime).TotalSeconds,
                     options.SlidingExpiration.Value.TotalSeconds);
             }
 
-            if (absoulteExpiration.HasValue)
-                return (long)(absoulteExpiration.Value - creationTime).TotalSeconds;
+            if (absoluteExpiration.HasValue)
+                return (long)(absoluteExpiration.Value - creationTime).TotalSeconds;
 
             if (options.SlidingExpiration.HasValue)
                 return (long)options.SlidingExpiration.Value.TotalSeconds;
 
             return null;
         }
-
-        private static class SyncOverAsync
-        {
-            private static readonly TaskFactory factory
-                = new TaskFactory(CancellationToken.None, TaskCreationOptions.None, TaskContinuationOptions.None, TaskScheduler.Default);
-
-            public static void Run(Func<Task> task)
-                => factory.StartNew(task).Unwrap().GetAwaiter().GetResult();
-
-            public static TResult Run<TResult>(Func<Task<TResult>> task)
-                => factory.StartNew(task).Unwrap().GetAwaiter().GetResult();
-        }
     }
     public static class OrleansDistributedCacheExtensions
     {
-        public static IServiceCollection AddOrleansDistributedCache(this IServiceCollection services, Action<OrleansDistributedCacheOptions> options = null)
+        public static IServiceCollection AddOrleansDistributedCache(this IServiceCollection services, Action<OrleansDistributedCacheOptions>? options = null)
         {
             services.AddOptions();
-            services.Configure(options ?? new Action<OrleansDistributedCacheOptions>(defaultOptions => { }));
+            if (options is not null)
+            {
+                services.Configure(options);
+            }
+
             services.AddSingleton<IDistributedCache, OrleansDistributedCache>();
             return services;
         }
